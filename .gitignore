@@ -1,3 +1,4 @@
 *.pyc
 data/roof_images.zip
 .idea/
+data/roof_images/
