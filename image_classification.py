@@ -3,6 +3,7 @@ from collections import OrderedDict
 from sklearn.decomposition import PCA #, RandomizedPCA
 from sklearn.neighbors import KNeighborsClassifier
 from csv import reader, writer
+from datetime import datetime
 
 import numpy as np
 
@@ -102,7 +103,7 @@ def get_img_labels(task, nb_img=None):
 
 
 def write_results(IDs, predictions):
-    with open('output/sample_submission.csv', 'wb') as csvfile:
+    with open('output/sample_submission%s.csv' % datetime.today().strftime('%Y-%m-%d %H:%M'), 'wb') as csvfile:
         labelswriter = writer(csvfile, delimiter=',')
         labelswriter.writerow(['Id', 'label'])  # Header
         for ind, ID in enumerate(IDs):
