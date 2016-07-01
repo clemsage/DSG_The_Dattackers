@@ -103,11 +103,11 @@ def get_img_labels(task, nb_img=None):
 
 
 def write_results(IDs, predictions):
-    with open('output/sample_submission%s.csv' % datetime.today().strftime('%Y-%m-%d %H:%M'), 'wb') as csvfile:
+    with open('output/sample_submission%s.csv' % datetime.today().strftime('_%Y-%m-%d_%H.%M'), 'wb') as csvfile:
         labelswriter = writer(csvfile, delimiter=',')
         labelswriter.writerow(['Id', 'label'])  # Header
-        for ind, ID in enumerate(IDs):
-            labelswriter.writerow([ID, predictions[ind]])
+        for ind, prediction in enumerate(predictions):
+            labelswriter.writerow([IDs[ind], prediction])
 
 if __name__ == "__main__":
     main()
