@@ -4,18 +4,25 @@ from sklearn.decomposition import PCA #, RandomizedPCA
 from sklearn.neighbors import KNeighborsClassifier
 from csv import reader, writer
 from datetime import datetime
+from multiprocessing import Pool
+from functools import partial
 
 import numpy as np
 
 
 def main():
+    # Initialize a pool of worker for multiprocessing tasks
+    pool = Pool()
+
     # Fetch the data
     folder = 'data/roof_images/'
-    nb_img = 50  # None to consider all the images
 
     # Get nb_img/all the training examples
+    print "|| Learning phase ||"
+    nb_img = 1500  # None to consider all the images
     labels = get_img_labels('training', nb_img)
     Y_train = np.array(labels.values())
+    print "Number of images considered for training: %d" % len(Y_train)
 
     # Get the relative paths of the chosen images
     images_path = [folder + img_ID + '.jpg' for img_ID in labels.keys()]
@@ -23,37 +30,45 @@ def main():
     # Determine the average size of the images to resize them
     images_size = np.array([Image.open(filename).size for filename in images_path])
     STANDARD_SIZE = np.mean(images_size, axis=0, dtype=int)
+    print "Average size of the pictures of the training data: %d x %d pixels" % (STANDARD_SIZE[0], STANDARD_SIZE[1])
     #print dispersion_size = np.std(images_size, axis=0)  # Standard variation: [46 48] -> Pretty dispersed
 
-    # Resize the images & convert them into a matrix
+    print "Convert the images into a matrix of RGB pixels values & resize them to the average size ..."
     images = img_to_matrix(images_path, STANDARD_SIZE)
 
     # PCA to reduce the number of features
-    pca = PCA(n_components=20)  # if inferior to the number of the number of images, otherwise PCA effective on this last nb
+    print "Perform Principal Components Analysis (PCA) ..."
+    pca = PCA(n_components=0.99)  # Choose n_components such as the percentage of variance remaining is superior to this
     X_train = pca.fit_transform(images)
+    print "... Number of components of PCA transformation: %d" % pca.n_components_
 
     # Train a K-Neighbors classifier
+    print "Train a K-Neighbors classifier ..."
     knn = KNeighborsClassifier()
     knn.fit(X_train, Y_train)
 
     # Get the test examples
-    labels_test = get_img_labels('test', 100)
+    labels_test = get_img_labels('test')
     images_path = [folder + img_ID + '.jpg' for img_ID in labels_test.keys()]
 
-    # Process the predictions on chunks of the test data for memory reasons
-    Y_test = np.array([], dtype=int)
-    for chunk in [images_path[i: i + 1000] for i in range(0, len(images_path), 1000)]:
-        # Convert them to a matrix after resizing
-        X_test = img_to_matrix(chunk, STANDARD_SIZE)
-
-        # Apply the PCA on them
-        X_test = pca.transform(X_test)
-
-        # Predict the classes thanks to the model
-        Y_test = np.append(Y_test, knn.predict(X_test))
+    # Multiprocess the predictions on the test set
+    print "|| Predicting phase ||"
+    predictions_pool = partial(predictions, STANDARD_SIZE, pca, knn)
+    Y_test = pool.map(predictions_pool,images_path)
 
     # Write the results into a new csv file
     write_results(labels_test.keys(), Y_test)
+
+
+def predictions(STANDARD_SIZE, pca, knn, image_path):
+    # Convert them to a matrix after resizing
+    X_test = img_to_matrix(image_path, STANDARD_SIZE)
+
+    # Apply the PCA on them
+    X_test = pca.transform(X_test)
+
+    # Predict the classes thanks to the model
+    return knn.predict(X_test)[0]
 
 
 def img_to_matrix(filenames, STANDARD_SIZE=None, verbose=False):
