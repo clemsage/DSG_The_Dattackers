@@ -12,14 +12,15 @@ import numpy as np
 
 def main():
     # Initialize a pool of worker for multiprocessing tasks
-    pool = Pool()
+    pool = Pool(3)
 
     # Fetch the data
     folder = 'data/roof_images/'
 
     # Get nb_img/all the training examples
     print "|| Learning phase ||"
-    nb_img = 1500  # None to consider all the images
+    nb_img = 3000  # None to consider all the images (i.e 8000 images)
+    colors = False  # True to consider RGB values, False for black & white
     labels = get_img_labels('training', nb_img)
     Y_train = np.array(labels.values())
     print "Number of images considered for training: %d" % len(Y_train)
@@ -34,7 +35,7 @@ def main():
     #print dispersion_size = np.std(images_size, axis=0)  # Standard variation: [46 48] -> Pretty dispersed
 
     print "Convert the images into a matrix of RGB pixels values & resize them to the average size ..."
-    images = img_to_matrix(images_path, STANDARD_SIZE)
+    images = img_to_matrix(images_path, STANDARD_SIZE, colors=colors)
 
     # PCA to reduce the number of features
     print "Perform Principal Components Analysis (PCA) ..."
@@ -51,18 +52,18 @@ def main():
     labels_test = get_img_labels('test')
     images_path = [folder + img_ID + '.jpg' for img_ID in labels_test.keys()]
 
-    # Multiprocess the predictions on the test set
+    # Multiprocess the predictions on the test set (13 999 images)
     print "|| Predicting phase ||"
-    predictions_pool = partial(predictions, STANDARD_SIZE, pca, knn)
+    predictions_pool = partial(predictions, STANDARD_SIZE, pca, knn, colors)
     Y_test = pool.map(predictions_pool,images_path)
 
     # Write the results into a new csv file
     write_results(labels_test.keys(), Y_test)
 
 
-def predictions(STANDARD_SIZE, pca, knn, image_path):
+def predictions(STANDARD_SIZE, pca, knn, colors, image_path):
     # Convert them to a matrix after resizing
-    X_test = img_to_matrix(image_path, STANDARD_SIZE)
+    X_test = img_to_matrix(image_path, STANDARD_SIZE, colors=colors)
 
     # Apply the PCA on them
     X_test = pca.transform(X_test)
@@ -71,7 +72,7 @@ def predictions(STANDARD_SIZE, pca, knn, image_path):
     return knn.predict(X_test)[0]
 
 
-def img_to_matrix(filenames, STANDARD_SIZE=None, verbose=False):
+def img_to_matrix(filenames, STANDARD_SIZE=None, verbose=False, colors=True):
     """
     takes one or several filenames and turns them into a numpy array of RGB pixels
     """
@@ -79,10 +80,15 @@ def img_to_matrix(filenames, STANDARD_SIZE=None, verbose=False):
         filenames = [filenames]
 
     # Initialize an empty array of dimension (Number of images * (3 * number of pixels after resizing))
-    images = np.zeros((len(filenames), 3*STANDARD_SIZE[0]*STANDARD_SIZE[1]), dtype=np.uint8)  # Unsigned 8 bits
+    if colors:
+        images = np.zeros((len(filenames), 3*STANDARD_SIZE[0]*STANDARD_SIZE[1]), dtype=np.uint8)  # Unsigned 8 bits
+    else:
+        images = np.zeros((len(filenames), STANDARD_SIZE[0]*STANDARD_SIZE[1]), dtype=np.bool_)  # Black or white
     for ind, filename in enumerate(filenames):
-        img = Image.open(filename)
+        img = Image.open(filename)  # Open image
         img = resize_img(img, STANDARD_SIZE)
+        if not colors:
+            img = img.convert('1')  # convert image to black and white
         img = np.array(img.getdata()).reshape(1, -1)  # Flatten the RGB arrays into a 1D array along axis = 1
         images[(ind,)] = img
 
