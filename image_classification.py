@@ -10,6 +10,7 @@ from functools import partial
 import numpy as np
 
 
+
 def main():
     # Initialize a pool of worker for multiprocessing tasks
     pool = Pool(3)
