@@ -6,12 +6,17 @@ from csv import reader, writer
 from datetime import datetime
 from multiprocessing import Pool
 from functools import partial
+import time
+
 
 import numpy as np
 
 
 
 def main():
+    # Execution time
+    start_time = time.time()
+
     # Initialize a pool of worker for multiprocessing tasks
     pool = Pool(3)
 
@@ -60,6 +65,9 @@ def main():
 
     # Write the results into a new csv file
     write_results(labels_test.keys(), Y_test)
+
+    # Print execution time
+    print("--- %s seconds ---" % (time.time() - start_time))
 
 
 def predictions(STANDARD_SIZE, pca, knn, colors, image_path):
